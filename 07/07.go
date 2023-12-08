@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"sort"
 	"strconv"
@@ -25,7 +26,7 @@ const (
 	FIVE_OF_A_KIND
 )
 
-var cardValues = map[byte]int{
+var cardValuesPart1 = map[byte]int{
 	'2': 0,
 	'3': 1,
 	'4': 2,
@@ -36,6 +37,22 @@ var cardValues = map[byte]int{
 	'9': 7,
 	'T': 8,
 	'J': 9,
+	'Q': 10,
+	'K': 11,
+	'A': 12,
+}
+
+var cardValuesPart2 = map[byte]int{
+	'J': 0,
+	'2': 1,
+	'3': 2,
+	'4': 3,
+	'5': 4,
+	'6': 5,
+	'7': 6,
+	'8': 7,
+	'9': 8,
+	'T': 9,
 	'Q': 10,
 	'K': 11,
 	'A': 12,
@@ -69,27 +86,39 @@ func main() {
 		hands = append(hands, hand)
 	}
 
+	// part 1
 	sort.Slice(hands, func(i, j int) bool {
 		aHand := hands[i]
 		bHand := hands[j]
-		return compareHands(aHand, bHand)
+		return compareHandsPart1(aHand, bHand)
 	})
-
 	accu := 0
 	for i, v := range hands {
 		fmt.Println("Hand of rank", i+1, "is", string(v.cards))
 		accu += (i + 1) * v.bid
 	}
-
 	fmt.Println("Part 1 solution: ", accu)
+
+	// part 1
+	sort.Slice(hands, func(i, j int) bool {
+		aHand := hands[i]
+		bHand := hands[j]
+		return compareHandsPart2(aHand, bHand)
+	})
+	accu = 0
+	for i, v := range hands {
+		fmt.Println("Hand of rank", i+1, "is", string(v.cards))
+		accu += (i + 1) * v.bid
+	}
+	fmt.Println("Part 2 solution: ", accu)
 }
 
-func compareHands(aHand hand, bHand hand) bool {
-	aType, err := handType(aHand)
+func compareHandsPart1(aHand hand, bHand hand) bool {
+	aType, err := handTypePart1(aHand)
 	if err != nil {
 		log.Fatalln("Could not get hand type for ", aHand, "because", err)
 	}
-	bType, err := handType(bHand)
+	bType, err := handTypePart1(bHand)
 	if err != nil {
 		log.Fatalln("Could not get hand type for ", bHand, "because", err)
 	}
@@ -98,14 +127,99 @@ func compareHands(aHand hand, bHand hand) bool {
 	} else {
 		for k := 0; k < len(aHand.cards); k++ {
 			if aHand.cards[k] != bHand.cards[k] {
-				return cardValues[aHand.cards[k]] < cardValues[bHand.cards[k]]
+				return cardValuesPart1[aHand.cards[k]] < cardValuesPart1[bHand.cards[k]]
 			}
 		}
 	}
 	return false
 }
 
-func handType(h hand) (int, error) {
+func handTypePart2(h hand) (int, error) {
+	chrCounts := make(map[byte]int)
+
+	for _, c := range h.cards {
+		chrCounts[c]++
+	}
+
+	jCount := chrCounts['J']
+	if jCount > 0 && len(chrCounts) > 1 {
+		// if there exists a J, and it's not a full hand of Js
+		// assume all Js are now the most counted card
+		// this should suffice to always upgrade our hand according to the rules
+		delete(chrCounts, 'J')
+		var maxChar byte
+		maxCount := math.MinInt
+		for k, v := range chrCounts {
+			if v > maxCount {
+				maxCount = v
+				maxChar = k
+			}
+		}
+
+		chrCounts[maxChar] += jCount
+	}
+
+	values := make([]int, len(chrCounts))
+	i := 0
+	for _, v := range chrCounts {
+		values[i] = v
+		i++
+	}
+
+	sort.Ints(values)
+
+	if len(values) == 1 && values[0] == 5 {
+		return FIVE_OF_A_KIND, nil
+	}
+
+	if len(values) == 2 && values[0] == 1 && values[1] == 4 {
+		return FOUR_OF_A_KIND, nil
+	}
+
+	if len(values) == 2 && values[0] == 2 && values[1] == 3 {
+		return FULL_HOUSE, nil
+	}
+
+	if len(values) == 3 && values[0] == 1 && values[1] == 1 && values[2] == 3 {
+		return THREE_OF_A_KIND, nil
+	}
+
+	if len(values) == 3 && values[0] == 1 && values[1] == 2 && values[2] == 2 {
+		return TWO_PAIR, nil
+	}
+
+	if len(values) == 4 && values[0] == values[1] && values[1] == values[2] && values[3] == 2 {
+		return ONE_PAIR, nil
+	}
+
+	if len(values) == 5 {
+		return HIGH_CARD, nil
+	}
+
+	return -1, fmt.Errorf("unknown hand type %s", string(hand{}.cards))
+}
+
+func compareHandsPart2(aHand hand, bHand hand) bool {
+	aType, err := handTypePart2(aHand)
+	if err != nil {
+		log.Fatalln("Could not get hand type for ", aHand, "because", err)
+	}
+	bType, err := handTypePart2(bHand)
+	if err != nil {
+		log.Fatalln("Could not get hand type for ", bHand, "because", err)
+	}
+	if aType != bType {
+		return aType < bType
+	} else {
+		for k := 0; k < len(aHand.cards); k++ {
+			if aHand.cards[k] != bHand.cards[k] {
+				return cardValuesPart2[aHand.cards[k]] < cardValuesPart2[bHand.cards[k]]
+			}
+		}
+	}
+	return false
+}
+func handTypePart1(h hand) (int, error) {
 	chrCounts := make(map[byte]int)
 
 	for _, c := range h.cards {
