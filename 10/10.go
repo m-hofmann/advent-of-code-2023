@@ -15,7 +15,7 @@ type pos struct {
 func main() {
 	fmt.Println("Starting day 10 ... ")
 
-	f, err := os.OpenFile("./data/part1.txt", os.O_RDONLY, os.ModePerm)
+	f, err := os.OpenFile("./data/demo3.txt", os.O_RDONLY, os.ModePerm)
 	if err != nil {
 		log.Fatalln("Failed to read input file!")
 	}
@@ -38,7 +38,30 @@ func main() {
 		y++
 	}
 
-	fmt.Println("Part 1 solution:", (1+getMaxReachableDist(startPos, grid, 0))/2)
+	//fmt.Println("Part 1 solution:", (1+getMaxReachableDist(startPos, grid, 0))/2)
+	traceLoop(startPos, &grid, 0)
+
+	totalEnclosed := 0
+	for y, line := range grid {
+		within := false
+		for x, c := range line {
+			if within {
+				if c != 'X' {
+					totalEnclosed++
+					grid[y][x] = 'I'
+				} else {
+					within = false
+				}
+			} else {
+				if c == 'X' {
+					within = true
+				}
+			}
+			fmt.Print(string(grid[y][x]))
+		}
+		fmt.Println()
+	}
+	fmt.Println("Part 2 solution:", totalEnclosed)
 }
 
 func getMaxReachableDist(from pos, grid [][]byte, level int) int {
@@ -52,6 +75,35 @@ func getMaxReachableDist(from pos, grid [][]byte, level int) int {
 		}
 	}
 	return maxDist
+}
+
+func traceLoop(from pos, grid *[][]byte, level int) int {
+	maxDist := level
+	//fmt.Println("Nesting level", level, "at", from)
+	for _, reachable := range getReachable(from, (*grid)[from.y][from.x]) {
+		(*grid)[from.y][from.x] = 'X'
+		if (*grid)[reachable.y][reachable.x] != 'S' && (*grid)[reachable.y][reachable.x] != 'X' && (*grid)[reachable.y][reachable.x] != '.' &&
+			reachable.y >= 0 && reachable.y < len(*grid) && reachable.x >= 0 && reachable.x < len((*grid)[reachable.y]) {
+			return traceLoop(reachable, grid, level+1)
+		}
+	}
+	return maxDist
+}
+func traceLoopOld(from pos, grid *[][]byte) bool {
+	//fmt.Println("Nesting level", level, "at", from)
+	for _, reachable := range getReachable(from, (*grid)[from.y][from.x]) {
+		if (*grid)[reachable.y][reachable.x] == 'S' {
+			return true
+		}
+		(*grid)[reachable.y][reachable.x] = 'X'
+		if (*grid)[reachable.y][reachable.x] != '.' && (*grid)[reachable.y][reachable.x] != 'X' &&
+			reachable.y >= 0 && reachable.y < len(*grid) && reachable.x >= 0 && reachable.x < len((*grid)[reachable.y]) {
+			if traceLoopOld(reachable, grid) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func getReachable(from pos, tile byte) []pos {
