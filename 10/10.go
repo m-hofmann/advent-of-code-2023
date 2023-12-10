@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"log"
-	"math"
 	"os"
 )
 
@@ -16,7 +15,7 @@ type pos struct {
 func main() {
 	fmt.Println("Starting day 10 ... ")
 
-	f, err := os.OpenFile("./data/part1b.txt", os.O_RDONLY, os.ModePerm)
+	f, err := os.OpenFile("./data/part1.txt", os.O_RDONLY, os.ModePerm)
 	if err != nil {
 		log.Fatalln("Failed to read input file!")
 	}
@@ -26,7 +25,6 @@ func main() {
 	grid := make([][]byte, 0)
 
 	startPos := pos{-1, -1}
-	adjacency := make(map[pos]map[pos]struct{})
 	y := 0
 	for sc.Scan() {
 		line := sc.Text()
@@ -40,88 +38,20 @@ func main() {
 		y++
 	}
 
-	for y := range grid {
-		for x := range grid[y] {
-			currPos := pos{y, x}
-			currC := grid[y][x]
-			if currC == '.' {
-				continue
-			}
+	fmt.Println("Part 1 solution:", (1+getMaxReachableDist(startPos, grid, 0))/2)
+}
 
-			for _, reachable := range getReachable(currPos, currC) {
-				if reachable.x < 0 || reachable.x >= len(grid[y]) ||
-					reachable.y < 0 || reachable.y >= len(grid) {
-					// out of bounds coordinate
-					continue
-				}
-
-				// only add pipe-tiles to the adjacency matrix
-				if grid[reachable.y][reachable.x] == '.' {
-					continue
-				}
-
-				if _, ok := adjacency[currPos]; !ok {
-					adjacency[currPos] = make(map[pos]struct{})
-				}
-				adjacency[currPos][reachable] = struct{}{}
-				if _, ok := adjacency[reachable]; !ok {
-					adjacency[reachable] = make(map[pos]struct{})
-				}
-				adjacency[reachable][currPos] = struct{}{}
-			}
+func getMaxReachableDist(from pos, grid [][]byte, level int) int {
+	maxDist := level
+	//fmt.Println("Nesting level", level, "at", from)
+	for _, reachable := range getReachable(from, grid[from.y][from.x]) {
+		grid[from.y][from.x] = '.'
+		if grid[reachable.y][reachable.x] != 'S' && grid[reachable.y][reachable.x] != '.' &&
+			reachable.y >= 0 && reachable.y < len(grid) && reachable.x >= 0 && reachable.x < len(grid[reachable.y]) {
+			return getMaxReachableDist(reachable, grid, level+1)
 		}
 	}
-
-	dist := make(map[pos]int)
-	dist[startPos] = 0
-	prev := make(map[pos]pos)
-	toCheck := make(map[pos]struct{})
-	toCheck[startPos] = struct{}{}
-
-	for len(toCheck) != 0 {
-		minDist := math.MaxInt
-		var cand pos
-		for curr := range toCheck {
-			if dist[curr] < minDist {
-				minDist = dist[curr]
-				cand = curr
-			}
-		}
-		delete(toCheck, cand)
-
-		for neighbor := range adjacency[cand] {
-			newDist := dist[cand] + 1
-			neighborDist := math.MaxInt
-			if val, ok := dist[neighbor]; ok {
-				neighborDist = val
-			}
-			if newDist < neighborDist {
-				prev[neighbor] = cand
-				dist[neighbor] = newDist
-				toCheck[neighbor] = struct{}{}
-			}
-		}
-	}
-
-	for y := range grid {
-		for x := range grid[y] {
-			if val, ok := dist[pos{y, x}]; ok {
-				fmt.Print(val)
-			} else {
-				fmt.Print(".")
-			}
-		}
-		fmt.Println()
-	}
-
-	maxDist := math.MinInt
-
-	for _, dist := range dist {
-		maxDist = max(dist, maxDist)
-	}
-
-	fmt.Println("Part 1 solution:", maxDist)
-
+	return maxDist
 }
 
 func getReachable(from pos, tile byte) []pos {
@@ -143,7 +73,7 @@ func getReachable(from pos, tile byte) []pos {
 	case 'S':
 		// ignore for now, we treat that separately
 		// by using the fact the if S reachable from neighbor, then neighbor reachable from S
-		return []pos{}
+		return []pos{{from.y - 1, from.x}, {from.y + 1, from.x}, {from.y, from.x - 1}, {from.y, from.x + 1}}
 	default:
 		return []pos{}
 	}
