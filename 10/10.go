@@ -15,7 +15,7 @@ type pos struct {
 func main() {
 	fmt.Println("Starting day 10 ... ")
 
-	f, err := os.OpenFile("./data/demo3.txt", os.O_RDONLY, os.ModePerm)
+	f, err := os.OpenFile("./data/demo4.txt", os.O_RDONLY, os.ModePerm)
 	if err != nil {
 		log.Fatalln("Failed to read input file!")
 	}
@@ -37,25 +37,53 @@ func main() {
 		}
 		y++
 	}
+	gridCopy := make([][]byte, len(grid))
+	for i := range grid {
+		gridCopy[i] = make([]byte, len(grid[i]))
+		copy(gridCopy[i], grid[i])
+	}
+	fmt.Println("Part 1 solution:", (1+getMaxReachableDist(startPos, gridCopy, 0))/2)
+	for i := range grid {
+		gridCopy[i] = make([]byte, len(grid[i]))
+		copy(gridCopy[i], grid[i])
+	}
+	// gridCopy: Contains traced-out 'X' path
+	// grid: Contains original tiles for looking up "walls"
+	for i := range grid {
+		gridCopy[i] = make([]byte, len(grid[i]))
+		copy(gridCopy[i], grid[i])
+	}
+	traceLoop(startPos, &gridCopy, 0)
 
-	//fmt.Println("Part 1 solution:", (1+getMaxReachableDist(startPos, grid, 0))/2)
-	traceLoop(startPos, &grid, 0)
+	for _, line := range gridCopy {
+		for _, c := range line {
+			fmt.Print(string(c))
+		}
+		fmt.Println()
+	}
 
+	fmt.Println()
 	totalEnclosed := 0
 	for y, line := range grid {
 		within := false
+		last := '.'
 		for x, c := range line {
-			if within {
-				if c != 'X' {
-					totalEnclosed++
-					grid[y][x] = 'I'
-				} else {
-					within = false
+			if gridCopy[y][x] == 'X' {
+				if c == '|' {
+					within = !within
+				} else if c == 'F' {
+					last = 'F'
+				} else if c == 'L' {
+					last = 'L'
+				} else if c == 'J' && last == 'F' {
+					within = !within
+				} else if c == '7' && last == 'L' {
+					within = !within
 				}
-			} else {
-				if c == 'X' {
-					within = true
-				}
+			} else if within {
+				totalEnclosed++
+				grid[y][x] = 'I'
+			} else if !within {
 			}
 			fmt.Print(string(grid[y][x]))
 		}
