@@ -115,3 +115,5 @@ fabric.properties
 # Go workspace file
 go.work
 
+# AoC input files
+**/data/part1.txt
