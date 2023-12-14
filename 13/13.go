@@ -39,24 +39,40 @@ func main() {
 	for i, grid := range grids {
 		vsig := getVSig(grid)
 		hsig := getHSig(grid)
-		fmt.Printf("Pattern %d: vsig %v, hsig %v\n", i, vsig, hsig)
-		fmt.Printf("Vsig symmetry %v\n", getVSymmAxis(vsig))
-		fmt.Printf("Hsig symmetry %v\n", getHSymmAxis(hsig))
 
-		vSymmetry := getVSymmAxis(vsig)
-		hSymmetry := getHSymmAxis(hsig)
+		vSymmetry := getSymm(vsig)
+		hSymmetry := getSymm(hsig)
 		if vSymmetry > -1 && hSymmetry == -1 {
 			sum += vSymmetry
 		} else if vSymmetry == -1 && hSymmetry > -1 {
 			sum += 100 * hSymmetry
 		} else {
 			fmt.Errorf("Pattern %d: vsig %v, hsig %v\n", i, vsig, hsig)
-			fmt.Errorf("Vsig symmetry", getVSymmAxis(vsig))
-			fmt.Errorf("Hsig symmetry", getHSymmAxis(hsig))
+			fmt.Errorf("Vsig symmetry %v\n", vSymmetry)
+			fmt.Errorf("Hsig symmetry %v\n", hSymmetry)
 			return
 		}
 	}
 	fmt.Println("Part 1 solution:", sum)
+
+	sum = 0
+	for i, grid := range grids {
+		vsig := getVSig(grid)
+		hsig := getHSig(grid)
+
+		vSymmetry := getSymmWithSmudge(vsig)
+		hSymmetry := getSymmWithSmudge(hsig)
+		if vSymmetry > -1 && hSymmetry == -1 {
+			sum += vSymmetry
+		} else if vSymmetry == -1 && hSymmetry > -1 {
+			sum += 100 * hSymmetry
+		} else {
+			fmt.Printf("Pattern %d: vsig %v, hsig %v\n", i, vsig, hsig)
+			fmt.Printf("Vsig symmetry %v\n", vSymmetry)
+			fmt.Printf("Hsig symmetry %v\n", hSymmetry)
+		}
+	}
+	fmt.Println("Part 2 solution:", sum)
 }
 
 func getHSig(grid [][]byte) []int {
@@ -86,7 +102,7 @@ func getVSig(grid [][]byte) []int {
 }
 
 // returns -1 if no symmetry, x axis else
-func getVSymmAxis(arr []int) int {
+func getSymm(arr []int) int {
 	for i := 0; i < len(arr)-1; i++ {
 		j := i
 		k := i + 1
@@ -101,18 +117,37 @@ func getVSymmAxis(arr []int) int {
 	return -1
 }
 
-// returns -1 if no symmetry, y axis else
-func getHSymmAxis(arr []int) int {
+// returns -1 if no symmetry, x axis else
+func getSymmWithSmudge(arr []int) int {
 	for i := 0; i < len(arr)-1; i++ {
 		j := i
 		k := i + 1
-		for arr[j] == arr[k] {
+		smudges := 0
+
+		for arr[j] == arr[k] || smudgeEqual(arr[j], arr[k]) {
+			if smudgeEqual(arr[j], arr[k]) {
+				smudges++
+			}
 			if j == 0 || k == len(arr)-1 {
-				return i + 1
+				if smudges == 1 {
+					return i + 1
+				} else {
+					goto out
+				}
 			}
 			j--
 			k++
 		}
+	out:
 	}
 	return -1
+}
+
+func smudgeEqual(a, b int) bool {
+	n := a ^ b
+	// exactly one bit (the smudge) different
+	if a != b && (n&(n-1)) == 0 {
+		return true
+	}
+	return false
 }
