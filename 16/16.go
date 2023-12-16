@@ -43,29 +43,59 @@ func main() {
 		}
 	}
 
-	for _, line := range grid {
-		for _, c := range line {
-			fmt.Print(string(c))
-		}
-		fmt.Println()
-	}
-
 	traceBeam(pos{0, 0}, E, grid, &energized)
+	energizedCount := countEnergized(energized)
+	fmt.Println("Part 1 solution:", energizedCount)
 
+	maxEnergized := 0
+	for y := range grid {
+		for x := range grid[y] {
+			zeroOut(&energized)
+			dir := -1
+			if y == 0 {
+				dir = S
+			} else if y == len(grid)-1 {
+				dir = N
+			}
+
+			if x == 0 {
+				dir = E
+			} else if x == len(grid[0])-1 {
+				// east border
+				dir = W
+			}
+			if dir != -1 {
+				startPos := pos{y, x}
+				traceBeam(startPos, dir, grid, &energized)
+				energizedCount := countEnergized(energized)
+				if energizedCount > maxEnergized {
+					maxEnergized = energizedCount
+				}
+			}
+		}
+	}
+	fmt.Println("Part 2 solution:", maxEnergized)
+
+}
+
+func zeroOut(energized *[][]int) {
+	for y := range *energized {
+		for x := range (*energized)[y] {
+			(*energized)[y][x] = 0
+		}
+	}
+}
+
+func countEnergized(energized [][]int) int {
 	energizedCount := 0
 	for y, line := range energized {
 		for x := range line {
 			if energized[y][x] > 0 {
-				fmt.Print(string('#'))
 				energizedCount++
-			} else {
-				fmt.Print(string('.'))
 			}
 		}
-		fmt.Println()
 	}
-	fmt.Println("Part 1 solution:", energizedCount)
-
+	return energizedCount
 }
 
 func traceBeam(curr pos, dir int, grid [][]byte, energized *[][]int) {
