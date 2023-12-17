@@ -14,8 +14,9 @@ type pos struct {
 }
 
 type posVector struct {
-	pos pos
-	dir int
+	pos       pos
+	prev      int
+	runLength int
 }
 
 const (
@@ -46,13 +47,12 @@ func main() {
 		y++
 	}
 
-	dist, previous := findShortestPathLength(pos{0, 0}, &grid)
-	target := pos{len(grid) - 1, len(grid[0]) - 1}
-	curr := target
-	for !(curr.x == 0 && curr.y == 0) {
+	dist, previous, shortest := findShortestPathLength(posVector{pos{0, 0}, E, 0}, pos{len(grid) - 1, len(grid[0]) - 1}, &grid)
+	curr := shortest[len(grid)-1][len(grid[0])-1]
+	for curr != previous[curr] {
 		fmt.Println(curr)
 		dirChar := 'X'
-		prev := previous[curr.y][curr.x]
+		prev := previous[curr]
 		switch prev.dir {
 		case N:
 			dirChar = '^'
@@ -63,13 +63,13 @@ func main() {
 		case E:
 			dirChar = '>'
 		}
-		grid[curr.y][curr.x] = int(dirChar - '0')
-		curr = prev.pos
+		grid[curr.pos.y][curr.pos.x] = int(dirChar - '0')
+		curr = prev
 	}
 	fmt.Println("Distances ---")
-	for y := range dist {
-		for _, c := range dist[y] {
-			fmt.Printf("%3d ", c)
+	for y := range shortest {
+		for x := range shortest[y] {
+			fmt.Printf("%3d ", dist[shortest[y][x]])
 		}
 		fmt.Println()
 	}
@@ -81,114 +81,100 @@ func main() {
 		}
 		fmt.Println()
 	}
-	fmt.Println("Part 1 solution:", dist[target.y][target.x])
-
+	fmt.Println("Part 1 solution:", dist[shortest[len(grid)-1][len(grid[0])-1]])
 }
 
 // returns tuple of (distance matrix, prev/dir matrix)
-func findShortestPathLength(from pos, grid *[][]int) ([][]int, [][]*posVector) {
+func findShortestPathLength(from posVector, to pos, grid *[][]int) (map[posVector]int, map[posVector]posVector, [][]posVector) {
 	// heat shed
-	dist := make([][]int, len(*grid))
+	dist := make(map[posVector]int)
 	// source node + incoming direction
-	prev := make([][]*posVector, len(*grid))
+	prev := make(map[posVector]posVector)
+	shortest := make([][]posVector, len(*grid))
 	for y := range *grid {
-		dist[y] = make([]int, len((*grid)[0]))
-		prev[y] = make([]*posVector, len((*grid)[0]))
-		for x := range (*grid)[y] {
-			dist[y][x] = math.MaxInt
-			prev[y][x] = nil
-		}
+		shortest[y] = make([]posVector, len((*grid)[0]))
 	}
-	dist[from.y][from.x] = 0
-	prev[from.y][from.x] = &posVector{pos: pos{-1, -1}, dir: E}
-	unvisited := make(map[pos]struct{})
+	dist[from] = 0
+	prev[from] = from
+	shortest[from.pos.y][from.pos.x] = from
+	unvisited := make(map[posVector]struct{})
 	unvisited[from] = struct{}{}
 
 	for len(unvisited) > 0 {
-		node, _ := selectMin(&unvisited, &dist)
-		delete(unvisited, node)
+		source, _ := selectAny(&unvisited, &dist)
+		delete(unvisited, source)
 
-		for _, next := range possibleNeighbors(node, prev[node.y][node.x].dir, grid) {
-			// prune > 3x same direction
-			pred := node
-			dir := 0
-			i := 0
-			for ; (pred.y != -1 && pred.x != -1) && i < 3; i++ {
-				vec := prev[pred.y][pred.x]
-				if vec != nil {
-					dir |= vec.dir
-					pred = vec.pos
-				} else {
-					break
-				}
-			}
-			if i == 3 && (dir&(dir-1)) == 0 && dir == next.dir {
-				continue
-			}
+		for _, next := range possibleNeighbors(source, grid) {
+			fmt.Println("For", source.pos, "next is", next.pos)
 
-			alt := dist[node.y][node.x] + (*grid)[next.pos.y][next.pos.x]
-			if alt < dist[next.pos.y][next.pos.x] {
-				dist[next.pos.y][next.pos.x] = alt
-				prev[next.pos.y][next.pos.x] = &posVector{node, next.dir}
-				unvisited[next.pos] = struct{}{}
+			alt := dist[source] + (*grid)[next.pos.y][next.pos.x]
+			currentDist := math.MaxInt
+			if val, ok := dist[next]; ok {
+				currentDist = val
+			}
+			if alt < currentDist {
+				dist[next] = alt
+				shortest[next.pos.y][next.pos.x] = next
+				prev[next] = source
+
+				unvisited[next] = struct{}{}
 			}
 		}
 	}
 
-	return dist, prev
+	return dist, prev, shortest
 }
 
-func selectMin(unvisited *map[pos]struct{}, dist *[][]int) (pos, bool) {
+func selectMin(unvisited *map[posVector]struct{}, dist *map[posVector]int) (posVector, bool) {
 	minVal := math.MaxInt
-	minNode := pos{-1, -1}
+	var minNode *posVector
 	for k := range *unvisited {
-		if (*dist)[k.y][k.x] < minVal {
-			minVal = (*dist)[k.y][k.x]
-			minNode = k
+		if (*dist)[k] < minVal {
+			minVal = (*dist)[k]
+			minNode = &k
 		}
 	}
 
 	if minVal != math.MaxInt {
-		return minNode, true
+		return *minNode, true
 	} else {
-		return minNode, false
+		return *minNode, false
 	}
 }
 
-func possibleNeighborsUnconstrained(from pos, dir int, grid *[][]int) []posVector {
-	uncheckedPos := make([]posVector, 0)
-	uncheckedPos = append(uncheckedPos, posVector{pos{from.y, from.x - 1}, W},
-		posVector{pos{from.y - 1, from.x}, N},
-		posVector{pos{from.y, from.x + 1}, E},
-		posVector{pos{from.y + 1, from.x}, S})
-
-	checkedPos := make([]posVector, 0)
-	for _, elem := range uncheckedPos {
-		if elem.pos.x >= 0 && elem.pos.x < len((*grid)[0]) && elem.pos.y >= 0 && elem.pos.y < len(*grid) {
-			checkedPos = append(checkedPos, elem)
-		}
+func selectAny(unvisited *map[posVector]struct{}, dist *map[posVector]int) (posVector, bool) {
+	for k := range *unvisited {
+		return k, true
 	}
-	return checkedPos
+	return posVector{}, false
 }
 
 // coming from direction dir onto from, get valid neighbor cells (coordinate safe)
-func possibleNeighbors(from pos, dir int, grid *[][]int) []posVector {
+func possibleNeighbors(from posVector, grid *[][]int) []posVector {
 	uncheckedPos := make([]posVector, 0)
-	switch dir {
+	switch from.dir {
 	case N:
-		uncheckedPos = append(uncheckedPos, posVector{pos{from.y, from.x - 1}, W}, posVector{pos{from.y - 1, from.x}, N}, posVector{pos{from.y, from.x + 1}, E})
+		uncheckedPos = append(uncheckedPos, posVector{pos{from.pos.y, from.pos.x - 1}, W, 1},
+			posVector{pos{from.pos.y - 1, from.pos.x}, N, from.runLength + 1},
+			posVector{pos{from.pos.y, from.pos.x + 1}, E, 1})
 	case W:
-		uncheckedPos = append(uncheckedPos, posVector{pos{from.y, from.x - 1}, W}, posVector{pos{from.y - 1, from.x}, N}, posVector{pos{from.y + 1, from.x}, W})
+		uncheckedPos = append(uncheckedPos, posVector{pos{from.pos.y, from.pos.x - 1}, W, from.runLength + 1},
+			posVector{pos{from.pos.y - 1, from.pos.x}, N, 1},
+			posVector{pos{from.pos.y + 1, from.pos.x}, S, 1})
 	case S:
-		uncheckedPos = append(uncheckedPos, posVector{pos{from.y, from.x - 1}, W}, posVector{pos{from.y + 1, from.x}, S}, posVector{pos{from.y, from.x + 1}, E})
+		uncheckedPos = append(uncheckedPos, posVector{pos{from.pos.y, from.pos.x - 1}, W, 1},
+			posVector{pos{from.pos.y + 1, from.pos.x}, S, from.runLength + 1},
+			posVector{pos{from.pos.y, from.pos.x + 1}, E, 1})
 	case E:
-		uncheckedPos = append(uncheckedPos, posVector{pos{from.y, from.x + 1}, E}, posVector{pos{from.y + 1, from.x}, S}, posVector{pos{from.y - 1, from.x}, N})
+		uncheckedPos = append(uncheckedPos, posVector{pos{from.pos.y, from.pos.x + 1}, E, from.runLength + 1},
+			posVector{pos{from.pos.y + 1, from.pos.x}, S, 1},
+			posVector{pos{from.pos.y - 1, from.pos.x}, N, 1})
 	default:
 	}
 
 	checkedPos := make([]posVector, 0)
 	for _, elem := range uncheckedPos {
-		if elem.pos.x >= 0 && elem.pos.x < len((*grid)[0]) && elem.pos.y >= 0 && elem.pos.y < len(*grid) {
+		if elem.pos.x >= 0 && elem.pos.x < len((*grid)[0]) && elem.pos.y >= 0 && elem.pos.y < len(*grid) && elem.runLength <= 3 {
 			checkedPos = append(checkedPos, elem)
 		}
 	}
