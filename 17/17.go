@@ -29,7 +29,7 @@ const (
 func main() {
 	fmt.Println("Starting day 17 ... ")
 
-	f, err := os.OpenFile("./data/demo.txt", os.O_RDONLY, os.ModePerm)
+	f, err := os.OpenFile("./data/part1.txt", os.O_RDONLY, os.ModePerm)
 	if err != nil {
 		log.Fatalln("Failed to read input file!")
 	}
@@ -50,7 +50,6 @@ func main() {
 	dist, previous, shortest := findShortestPathLength(posVector{pos{0, 0}, E, 0}, pos{len(grid) - 1, len(grid[0]) - 1}, &grid)
 	curr := shortest[len(grid)-1][len(grid[0])-1]
 	for curr != previous[curr] {
-		fmt.Println(curr)
 		dirChar := 'X'
 		prev := previous[curr]
 		switch curr.dir {
@@ -66,21 +65,23 @@ func main() {
 		grid[curr.pos.y][curr.pos.x] = int(dirChar - '0')
 		curr = prev
 	}
-	fmt.Println("Distances ---")
-	for y := range shortest {
-		for x := range shortest[y] {
-			fmt.Printf("%3d ", dist[shortest[y][x].pos])
+	/*
+		fmt.Println("Distances ---")
+		for y := range shortest {
+			for x := range shortest[y] {
+				fmt.Printf("%3d ", dist[shortest[y][x].pos])
+			}
+			fmt.Println()
 		}
-		fmt.Println()
-	}
 
-	fmt.Println("Path ---")
-	for y := range grid {
-		for _, c := range grid[y] {
-			fmt.Print(string(c + '0'))
+		fmt.Println("Path ---")
+		for y := range grid {
+			for _, c := range grid[y] {
+				fmt.Print(string(c + '0'))
+			}
+			fmt.Println()
 		}
-		fmt.Println()
-	}
+	*/
 	fmt.Println("Part 1 solution:", dist[shortest[len(grid)-1][len(grid[0])-1].pos])
 }
 
@@ -100,13 +101,18 @@ func findShortestPathLength(from posVector, to pos, grid *[][]int) (map[pos]int,
 	unvisited = append(unvisited, from)
 
 	for len(unvisited) > 0 {
-		source := unvisited[0]
-		unvisited = unvisited[1:]
-		if source.pos.y == 11 && source.pos.x == 11 {
-			fmt.Println("break", source)
-			fmt.Println("Neighbors:", possibleNeighbors(source, grid))
+		source, ok := selectMin(&unvisited, &dist)
+		if ok {
+			newUnvisited := make([]posVector, len(unvisited)-1)
+			nI := 0
+			for i := 0; i < len(unvisited); i++ {
+				if unvisited[i] != source {
+					newUnvisited[nI] = unvisited[i]
+					nI++
+				}
+			}
+			unvisited = newUnvisited
 		}
-
 		for _, next := range possibleNeighbors(source, grid) {
 			//fmt.Println("For", source.pos, "next is", next.pos)
 
@@ -120,6 +126,9 @@ func findShortestPathLength(from posVector, to pos, grid *[][]int) (map[pos]int,
 				shortest[next.pos.y][next.pos.x] = next
 				prev[next] = source
 				unvisited = append(unvisited, next)
+				if next.pos.y == len(*grid)-1 && next.pos.x == len((*grid)[0])-1 {
+					fmt.Println("Shortest is", alt-(*grid)[next.pos.y][next.pos.x])
+				}
 			}
 		}
 	}
@@ -127,12 +136,12 @@ func findShortestPathLength(from posVector, to pos, grid *[][]int) (map[pos]int,
 	return dist, prev, shortest
 }
 
-func selectMin(unvisited *[]posVector, dist *map[posVector]int) (posVector, bool) {
+func selectMin(unvisited *[]posVector, dist *map[pos]int) (posVector, bool) {
 	minVal := math.MaxInt
 	var minNode *posVector
 	for _, k := range *unvisited {
-		if (*dist)[k] < minVal {
-			minVal = (*dist)[k]
+		if (*dist)[k.pos] < minVal {
+			minVal = (*dist)[k.pos]
 			minNode = &k
 		}
 	}
