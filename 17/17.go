@@ -69,7 +69,7 @@ func main() {
 	fmt.Println("Distances ---")
 	for y := range shortest {
 		for x := range shortest[y] {
-			fmt.Printf("%3d ", dist[shortest[y][x]])
+			fmt.Printf("%3d ", dist[shortest[y][x].pos])
 		}
 		fmt.Println()
 	}
@@ -81,20 +81,20 @@ func main() {
 		}
 		fmt.Println()
 	}
-	fmt.Println("Part 1 solution:", dist[shortest[len(grid)-1][len(grid[0])-1]])
+	fmt.Println("Part 1 solution:", dist[shortest[len(grid)-1][len(grid[0])-1].pos])
 }
 
 // returns tuple of (distance matrix, prev/dir matrix)
-func findShortestPathLength(from posVector, to pos, grid *[][]int) (map[posVector]int, map[posVector]posVector, [][]posVector) {
+func findShortestPathLength(from posVector, to pos, grid *[][]int) (map[pos]int, map[posVector]posVector, [][]posVector) {
 	// heat shed
-	dist := make(map[posVector]int)
+	dist := make(map[pos]int)
 	// source node + incoming direction
 	prev := make(map[posVector]posVector)
 	shortest := make([][]posVector, len(*grid))
 	for y := range *grid {
 		shortest[y] = make([]posVector, len((*grid)[0]))
 	}
-	dist[from] = 0
+	dist[from.pos] = 0
 	prev[from] = from
 	unvisited := make([]posVector, 0)
 	unvisited = append(unvisited, from)
@@ -102,17 +102,21 @@ func findShortestPathLength(from posVector, to pos, grid *[][]int) (map[posVecto
 	for len(unvisited) > 0 {
 		source := unvisited[0]
 		unvisited = unvisited[1:]
+		if source.pos.y == 11 && source.pos.x == 11 {
+			fmt.Println("break", source)
+			fmt.Println("Neighbors:", possibleNeighbors(source, grid))
+		}
 
 		for _, next := range possibleNeighbors(source, grid) {
-			fmt.Println("For", source.pos, "next is", next.pos)
+			//fmt.Println("For", source.pos, "next is", next.pos)
 
-			alt := dist[source] + (*grid)[source.pos.y][source.pos.x]
+			alt := dist[source.pos] + (*grid)[next.pos.y][next.pos.x]
 			currentDist := math.MaxInt
-			if val, ok := dist[next]; ok {
+			if val, ok := dist[next.pos]; ok {
 				currentDist = val
 			}
 			if alt < currentDist {
-				dist[next] = alt
+				dist[next.pos] = alt
 				shortest[next.pos.y][next.pos.x] = next
 				prev[next] = source
 				unvisited = append(unvisited, next)
