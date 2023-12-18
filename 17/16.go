@@ -15,7 +15,7 @@ type pos struct {
 
 type posVector struct {
 	pos       pos
-	prev      int
+	dir       int
 	runLength int
 }
 
@@ -53,7 +53,7 @@ func main() {
 		fmt.Println(curr)
 		dirChar := 'X'
 		prev := previous[curr]
-		switch prev.dir {
+		switch curr.dir {
 		case N:
 			dirChar = '^'
 		case W:
@@ -96,18 +96,17 @@ func findShortestPathLength(from posVector, to pos, grid *[][]int) (map[posVecto
 	}
 	dist[from] = 0
 	prev[from] = from
-	shortest[from.pos.y][from.pos.x] = from
-	unvisited := make(map[posVector]struct{})
-	unvisited[from] = struct{}{}
+	unvisited := make([]posVector, 0)
+	unvisited = append(unvisited, from)
 
 	for len(unvisited) > 0 {
-		source, _ := selectAny(&unvisited, &dist)
-		delete(unvisited, source)
+		source := unvisited[0]
+		unvisited = unvisited[1:]
 
 		for _, next := range possibleNeighbors(source, grid) {
 			fmt.Println("For", source.pos, "next is", next.pos)
 
-			alt := dist[source] + (*grid)[next.pos.y][next.pos.x]
+			alt := dist[source] + (*grid)[source.pos.y][source.pos.x]
 			currentDist := math.MaxInt
 			if val, ok := dist[next]; ok {
 				currentDist = val
@@ -116,8 +115,7 @@ func findShortestPathLength(from posVector, to pos, grid *[][]int) (map[posVecto
 				dist[next] = alt
 				shortest[next.pos.y][next.pos.x] = next
 				prev[next] = source
-
-				unvisited[next] = struct{}{}
+				unvisited = append(unvisited, next)
 			}
 		}
 	}
@@ -125,10 +123,10 @@ func findShortestPathLength(from posVector, to pos, grid *[][]int) (map[posVecto
 	return dist, prev, shortest
 }
 
-func selectMin(unvisited *map[posVector]struct{}, dist *map[posVector]int) (posVector, bool) {
+func selectMin(unvisited *[]posVector, dist *map[posVector]int) (posVector, bool) {
 	minVal := math.MaxInt
 	var minNode *posVector
-	for k := range *unvisited {
+	for _, k := range *unvisited {
 		if (*dist)[k] < minVal {
 			minVal = (*dist)[k]
 			minNode = &k
